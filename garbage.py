@@ -1,16 +1,18 @@
 import urllib.request
 import json
 import sys
-from datetime import datetime
-from ics import Calendar,Event
+from datetime import datetime, timedelta
+from ics import Calendar, Event, DisplayAlarm
 # Get the dataset metadata by passing package_id to the package_search endpoint
 # For example, to retrieve the metadata for this dataset:
 
 def proc_sched(sched):
         cal={}
         for record in sched:
-                item = {k.replace(' ', ''): v for k, v in record.items()}       #Sometimes there are spaces in the Key Names
-                cal_type = item["Calendar"].replace(" ","")                     #Sometimes there are spaces in the calendar types
+                #Sometimes there are spaces in the Key Names
+                item = {k.replace(' ', ''): v for k, v in record.items()}
+                #Sometimes there are spaces in the calendar types
+                cal_type = item["Calendar"].replace(" ","")
                 if cal_type not in cal:
                         cal[cal_type]={}
                 if "WeekStarting" in item.keys():
@@ -46,7 +48,8 @@ def get_cal(id):
                         total = data["result"]["total"]
                         for record in data["result"]["records"]:
                                 cal.append(record)
-                        offset+=100  #default ckan limit is 100 
+                        #default ckan limit is 100
+                        offset+=100
                 else: 
                         break
         return cal
@@ -62,6 +65,13 @@ def create_ics(cal):
                         e.description = "Pickup for: " + cal[cal_type][date]
                         e.transparent = True
                         e.make_all_day()
+
+                        # trigger alert at 9pm the night before
+                        # NOTE: doesn't always work with Google Calendar: https://stackoverflow.com/a/35876769
+                        alarm = DisplayAlarm()
+                        alarm.trigger = timedelta(hours=-int(3))
+
+                        e.alarms = [alarm]
                         c.events.add(e)
                 filename=cal_type+"_"+date_obj.strftime("%Y")+".ics"   
                 print("Creating ICS for", cal_type, "Filename:", filename)

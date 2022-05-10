@@ -1,9 +1,11 @@
 import urllib.request
 import json
+import sys
 from datetime import datetime
 from ics import Calendar,Event
 # Get the dataset metadata by passing package_id to the package_search endpoint
 # For example, to retrieve the metadata for this dataset:
+
 def proc_sched(sched):
         cal={}
         for record in sched:
@@ -16,18 +18,21 @@ def proc_sched(sched):
                 else:
                         cal[cal_type].update({item["Week Starting"] :gen_pickup(item)})        
         return cal
-def get_id_list():
+
+def get_id_list(year):
         url = "https://ckan0.cf.opendata.inter.prod-toronto.ca/api/3/action/package_show"
         params = { "id": "7b70189a-aede-42f1-b092-8708fa4f5fc3"}
         response = urllib.request.urlopen(url, data=bytes(json.dumps(params), encoding="utf-8"))
         package = json.loads(response.read())
         idlist = []
         for keys in package['result']['resources']:
-                if keys["datastore_active"] and keys["last_modified"]:
-                        date_obj = datetime.strptime(keys["last_modified"],'%Y-%m-%dT%H:%M:%S.%f')
-                        if date_obj >= datetime(2020,1,1):   #Only look for 2020 calendars
+                # resource with url_type of `datastore` has the ID for the event data we care about
+                if keys["datastore_active"] and keys["url_type"] == "datastore":
+                        # the `name` key is something like: pickup-schedule-2022, so find the one that matches the year we care about
+                        if year in keys["name"]:
                                 idlist.append(keys["id"])
         return idlist
+
 def get_cal(id):
         url = "https://ckan0.cf.opendata.inter.prod-toronto.ca/api/3/action/datastore_search"
         cal = list()
@@ -45,6 +50,7 @@ def get_cal(id):
                 else: 
                         break
         return cal
+
 def create_ics(cal):
         for cal_type in cal:
                 c = Calendar()
@@ -52,15 +58,16 @@ def create_ics(cal):
                         e = Event()
                         date_obj = datetime.strptime(date,'%Y-%m-%dT%H:%M:%S')
                         e.begin = date_obj
-                        e.name = "Solid Waste Pickup"
-                        e.description = cal[cal_type][date]
+                        e.name = "TOWaste - " + cal[cal_type][date]
+                        e.description = "Pickup for: " + cal[cal_type][date]
                         e.transparent = True
                         e.make_all_day()
                         c.events.add(e)
                 filename=cal_type+"_"+date_obj.strftime("%Y")+".ics"   
-                print("Creating ICS for",cal_type,"Filename:",filename)            
+                print("Creating ICS for", cal_type, "Filename:", filename)
                 with open(filename,'w') as f:
                         f.write(str(c))
+
 def gen_pickup(list_val):
         list_pickup = list()
         if list_val["GreenBin"] != '0':
@@ -73,11 +80,17 @@ def gen_pickup(list_val):
                 list_pickup.append("Yard Waste")
         if list_val["ChristmasTree"] != '0':
                 list_pickup.append("Christmas Tree")
-        str_list = ','.join(list_pickup)
+        str_list = ', '.join(list_pickup)
         return str_list
+
 def main():
+        if len(sys.argv) < 2:
+                print('must provide year: `python garbage.py YEAR`')
+                return
+        year = sys.argv[1]
+        print('Generating for year:', year)
         cal = list()
-        for id in get_id_list():
+        for id in get_id_list(year):
                 cal = get_cal(id)
                 sorted_cal = proc_sched(cal)
                 create_ics(sorted_cal)

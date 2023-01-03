@@ -6,24 +6,59 @@ from ics import Calendar, Event, DisplayAlarm
 # Get the dataset metadata by passing package_id to the package_search endpoint
 # For example, to retrieve the metadata for this dataset:
 
+
+'''
+This function will parse through the schedules for the given year and generate a dictionary
+for each schedule and the pickup days.
+
+For example:
+{
+    "Tuesday1":
+    {
+        "2023-01-03": "Green Bin, Garbage, Christmas Tree",
+        "2023-01-10": "Green Bin, Recycling",
+        "2023-01-17": "Green Bin, Garbage, Christmas Tree",
+        "2023-01-24": "Green Bin, Recycling",
+        "2023-01-31": "Green Bin, Garbage",
+        "2023-02-07": "Green Bin, Recycling",
+        "2023-02-14": "Green Bin, Garbage",
+        ...
+    },
+    "Tuesday2":
+    {
+        "2023-01-03": "Green Bin, Recycling",
+        "2023-01-10": "Green Bin, Garbage, Christmas Tree",
+        "2023-01-17": "Green Bin, Recycling",
+        "2023-01-24": "Green Bin, Garbage, Christmas Tree",
+        "2023-01-31": "Green Bin, Recycling",
+        "2023-02-07": "Green Bin, Garbage",
+        "2023-02-14": "Green Bin, Recycling",
+        ...
+    },
+    "Wednesday1": {...},
+    ...
+}
+'''
 def proc_sched(sched):
         cal={}
         for record in sched:
                 #Sometimes there are spaces in the Key Names
                 item = {k.replace(' ', ''): v for k, v in record.items()}
-                #Sometimes there are spaces in the calendar types
-                cal_type = item["Calendar"].replace(" ","")
+                # Sometimes there are spaces in the calendar types.
+                # These are the [Tuesday1,Tuesday2,Wednesday1...]
+                cal_type = item["Schedule"].replace(" ","")
                 if cal_type not in cal:
                         cal[cal_type]={}
-                if "WeekStarting" in item.keys():
-                        cal[cal_type].update({item["WeekStarting"] :gen_pickup(item)})
-                else:
-                        cal[cal_type].update({item["Week Starting"] :gen_pickup(item)})        
+                # For each collection schedule we want generate a dict using CollectionDate as the key
+                # The value is the string representation of what will be picked up on that date
+                cal[cal_type].update({item["CollectionDate"] :gen_pickup(item)})
         return cal
 
+# Query the Toronto Open Data API and get the garbage collection schedule for the given year.
+# This will get the schedule ID for the dataset that matches 'pickup-schedule-YYYY'.
 def get_id_list(year):
         url = "https://ckan0.cf.opendata.inter.prod-toronto.ca/api/3/action/package_show"
-        params = { "id": "7b70189a-aede-42f1-b092-8708fa4f5fc3"}
+        params = { "id": "solid-waste-pickup-schedule"}
         response = urllib.request.urlopen(url, data=bytes(json.dumps(params), encoding="utf-8"))
         package = json.loads(response.read())
         idlist = []
@@ -54,12 +89,13 @@ def get_cal(id):
                         break
         return cal
 
+# Generate an ICS file to be imported
 def create_ics(cal):
         for cal_type in cal:
                 c = Calendar()
                 for date in cal[cal_type]:
                         e = Event()
-                        date_obj = datetime.strptime(date,'%Y-%m-%dT%H:%M:%S')
+                        date_obj = datetime.strptime(date,'%Y-%m-%d')
                         e.begin = date_obj
                         e.name = "TOWaste - " + cal[cal_type][date]
                         e.description = "Pickup for: " + cal[cal_type][date]
@@ -78,9 +114,10 @@ def create_ics(cal):
                 with open(filename,'w') as f:
                         f.write(str(c))
 
+# Generate the list of what is picked up on the collection date
 def gen_pickup(list_val):
         list_pickup = list()
-        if list_val["GreenBin"] != '0':
+        if list_val["Organics"] != '0':
                 list_pickup.append("Green Bin")
         if list_val["Garbage"] != '0':
                 list_pickup.append("Garbage")        

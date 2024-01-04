@@ -4,17 +4,18 @@ Inspired by the out of date https://laurenarcher.github.io/iCalTOWaste/ and http
 
 # Run with code
 
-1. `pip install -r requirements.txt`
-2. `python garbage.py 2022`
+1. `virtualenv env`
+2. `source env/bin/activate`
+3. `pip install -r requirements.txt`
+4. `python garbage.py 2022`
   - Generates garbage collection events in an `.ics` file where you can import it to your Google Calendar
   - There will be an `.ics` file for every TOWaste collection day
   - You will need to know which day of the week is your collection day to know which calendar to import
-3. Import your applicable schedule `.ics` file to your calendar and you should see a new all-day event every week for the waste collection
+5. Import your applicable schedule `.ics` file to your calendar and you should see a new all-day event every week for the waste collection
 
-# Usage
+# Calendar files
 
-If you don't want to run it by code you can download the zip file under Releases: https://github.com/aseegobin/TorontoWasteICS/releases
-- [2022 zip file](https://github.com/aseegobin/TorontoWasteICS/files/8662878/2022.zip)
+If you don't want to run it by code and generate the files yourself, you can download your appropriate `.ics` file from the year folders directly in the repo.
 
 ## Confirmation
 

@@ -1,6 +1,7 @@
 import urllib.request
 import json
 import sys
+import os
 from datetime import datetime, timedelta
 from ics import Calendar, Event, DisplayAlarm
 # Get the dataset metadata by passing package_id to the package_search endpoint
@@ -90,7 +91,7 @@ def get_cal(id):
         return cal
 
 # Generate an ICS file to be imported
-def create_ics(cal):
+def create_ics(cal, year_folder_path):
         for cal_type in cal:
                 c = Calendar()
                 for date in cal[cal_type]:
@@ -109,9 +110,9 @@ def create_ics(cal):
 
                         e.alarms = [alarm]
                         c.events.add(e)
-                filename=cal_type+"_"+date_obj.strftime("%Y")+".ics"   
+                filename=f'{cal_type}_{date_obj.strftime("%Y")}.ics'
                 print("Creating ICS for", cal_type, "Filename:", filename)
-                with open(filename,'w') as f:
+                with open(f'{year_folder_path}/{filename}', 'w') as f:
                         f.write(str(c))
 
 # Generate the list of what is picked up on the collection date
@@ -136,9 +137,12 @@ def main():
                 return
         year = sys.argv[1]
         print('Generating for year:', year)
+        year_folder_path = f'./{year}'
+        if not os.path.exists(year_folder_path):
+                os.mkdir(year_folder_path)
         cal = list()
         for id in get_id_list(year):
                 cal = get_cal(id)
                 sorted_cal = proc_sched(cal)
-                create_ics(sorted_cal)
+                create_ics(sorted_cal, year_folder_path)
 main()
